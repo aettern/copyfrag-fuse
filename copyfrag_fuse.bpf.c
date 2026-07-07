@@ -6,6 +6,13 @@
 #define SOL_ALG 279
 #define ALG_SET_KEY 1
 
+#define SOL_UDP 17
+#define UDP_ENCAP 100
+
+#define SOL_RXRPC 278
+#define RXRPC_SECURITY_KEY 1
+#define RXRPC_MIN_SECURITY_LEVEL 2
+
 /* Burst configuration: 4 calls within 1 second */
 #define BURST_THRESHOLD 4
 #define BURST_WINDOW_NS 1000000000ULL 
@@ -25,9 +32,16 @@ struct {
 SEC("lsm/socket_setsockopt")
 int BPF_PROG(fuse_setsockopt, struct socket *sock, int level, int optname)
 {
-    /* Check if the syscall matches the CopyFail primitive */
-    if (level != SOL_ALG || optname != ALG_SET_KEY)
+    /* Check if the syscall matches our target primitives */
+    int is_copyfail = (level == SOL_ALG && optname == ALG_SET_KEY);
+    int is_dirtyfrag_udp = (level == SOL_UDP && optname == UDP_ENCAP);
+    int is_dirtyfrag_rx = (level == SOL_RXRPC && 
+                           (optname == RXRPC_SECURITY_KEY || optname == RXRPC_MIN_SECURITY_LEVEL));
+
+    /* Ignore irrelevant socket options to minimize overhead */
+    if (!is_copyfail && !is_dirtyfrag_udp && !is_dirtyfrag_rx) {
         return 0;
+    }
 
     /* Use process group ID (tgid) to catch threaded exploit variations */
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
