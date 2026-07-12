@@ -1,51 +1,54 @@
 # copyfrag-fuse
 
-a bpf-lsm module that blocks the copyfail and dirtyfrag local privilege escalation exploits on linux.
+bpf-lsm module that blocks CopyFail (CVE-2026-31431) and DirtyFrag (CVE-2026-43284 / CVE-2026-43500) at runtime. No kernel patch, no reboot.
+
+Full writeup with the exploit details and design reasoning: [WRITEUP.md](./WRITEUP.md)
 
 ## how it works
 
-it hooks into `socket_setsockopt` using bpf-lsm and watches for rapid bursts of specific socket option calls that these exploits rely on:
+Both exploits need to spam the same socket option (`ALG_SET_KEY`, `UDP_ENCAP`, `RXRPC_SECURITY_KEY`, `RXRPC_MIN_SECURITY_LEVEL`) repeatedly to build up their write, since each call only gets them a 4-byte write. Legit usage sets these once and moves on.
 
-- `SOL_ALG` / `ALG_SET_KEY` (copyfail)
-- `SOL_UDP` / `UDP_ENCAP` (dirtyfrag)
-- `SOL_RXRPC` / `RXRPC_SECURITY_KEY` and `RXRPC_MIN_SECURITY_LEVEL` (dirtyfrag)
-
-if a process makes 4 or more of these calls within 1 second, it gets blocked with `-EPERM`. normal usage of these socket options is unaffected.
+This hooks `security_socket_setsockopt` via `BPF_PROG_TYPE_LSM` and blocks a process with `-EPERM` if it makes 4+ of those calls within 1 second. Doesn't care which file is being targeted, doesn't need SELinux/AppArmor configured to catch it — details in the writeup.
 
 ## prerequisites
 
-- linux kernel 5.7+ with `CONFIG_BPF_LSM=y`
-- `bpf` must be listed in your kernel's lsm order (check `cat /sys/kernel/security/lsm`)
-- clang
-- libbpf-dev
-- libelf-dev
-- bpftool
+- kernel 5.7+ with `CONFIG_BPF_LSM=y`
+- `bpf` in your kernel's lsm order (`cat /sys/kernel/security/lsm`)
+- clang, libbpf-dev, libelf-dev, bpftool
 
-on ubuntu/debian:
 ```
 sudo apt install clang libbpf-dev libelf-dev linux-tools-common linux-tools-$(uname -r)
 ```
 
-## building
+## build
 
 ```
 make
 ```
 
-this generates `vmlinux.h` from your running kernel, compiles the bpf object, and builds the loader.
+generates `vmlinux.h` from your running kernel, builds the bpf object + loader.
 
-## running
+## run
 
 ```
 sudo ./loader
 ```
 
-it will print a message when active. press ctrl+c to detach and exit.
+ctrl+c to detach. watch it catch stuff live:
 
-blocked attempts show up in the kernel trace log:
 ```
 sudo cat /sys/kernel/debug/tracing/trace_pipe
 ```
+
+test it against the actual [CopyFail](https://copy.fail/) or [DirtyFrag](https://github.com/V4bel/dirtyfrag) PoC in a VM before trusting it anywhere real.
+
+## limitations
+
+runtime mitigation, not a patch — update your kernel when you can, this just covers the gap until then. also not bulletproof: forking to spread calls across PIDs, or slowing down below the 1s window, are both real ways around the current heuristic.
+
+## credits
+
+detection idea is from [Miggo Security / Rafael David Tinoco's writeup](https://medium.com/@miggo-engineering/detecting-copyfail-dirtyfrag-by-thinking-outside-the-box-3cae021ca94c) — this is my own implementation of it, turned into an active block instead of just detection. mitigation-tradeoffs section also draws on [Cloudflare's CopyFail writeup](https://blog.cloudflare.com/copy-fail-linux-vulnerability-mitigation/).
 
 ## license
 
