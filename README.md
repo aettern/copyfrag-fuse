@@ -2,7 +2,7 @@
 
 bpf-lsm module that blocks CopyFail (CVE-2026-31431) and DirtyFrag (CVE-2026-43284 / CVE-2026-43500) at runtime. No kernel patch, no reboot.
 
-Full writeup with the exploit details and design reasoning: [WRITEUP.md](./WRITEUP.md)
+Full writeup with the exploit details and design reasoning: [Write-Up](https://dev.to/aettern/fixing-lpes-on-the-fly-mitigating-copyfail-and-dirtyfrag-with-ebpf-1m7f)
 
 ## how it works
 
