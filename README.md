@@ -17,7 +17,7 @@ This hooks `security_socket_setsockopt` via `BPF_PROG_TYPE_LSM` and blocks a pro
 - clang, libbpf-dev, libelf-dev, bpftool
 
 ```
-sudo apt install clang libbpf-dev libelf-dev linux-tools-common linux-tools-$(uname -r)
+sudo apt install make clang libbpf-dev libelf-dev linux-tools-common linux-tools-$(uname -r)
 ```
 
 ## build
