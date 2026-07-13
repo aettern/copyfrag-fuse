@@ -10,15 +10,24 @@ Both exploits need to spam the same socket option (`ALG_SET_KEY`, `UDP_ENCAP`, `
 
 This hooks `security_socket_setsockopt` via `BPF_PROG_TYPE_LSM` and blocks a process with `-EPERM` if it makes 4+ of those calls within 1 second. Doesn't care which file is being targeted, doesn't need SELinux/AppArmor configured to catch it — details in the writeup.
 
+<img width="800" height="450" alt="copyfrag-fuse demo" src="https://github.com/user-attachments/assets/56dd5b2e-4b44-4c34-b731-b66c228b5412" />
+
 ## prerequisites
 
 - kernel 5.7+ with `CONFIG_BPF_LSM=y`
 - `bpf` in your kernel's lsm order (`cat /sys/kernel/security/lsm`)
-- clang, libbpf-dev, libelf-dev, bpftool
+- BTF info for your kernel (`ls /sys/kernel/btf/vmlinux` should exist)
 
+Ubuntu/Debian:
 ```
-sudo apt install make clang libbpf-dev libelf-dev linux-tools-common linux-tools-$(uname -r)
+sudo apt install clang libbpf-dev libelf-dev linux-tools-common linux-tools-$(uname -r)
 ```
+
+Fedora/RHEL:
+```
+sudo dnf install clang llvm libbpf-devel elfutils-libelf-devel bpftool kernel-devel
+```
+on RHEL, `libbpf-devel`/`bpftool` are in the CodeReady Builder repo — enable it first with `sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms` (swap `rhel-9` for `rhel-8` if needed).
 
 ## build
 
